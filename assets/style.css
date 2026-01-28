@@ -1,0 +1,92 @@
+:root {
+    --primary-color: #7A171D; /* Morningside Maroon */
+    --secondary-color: #FFFFFF;
+    --accent-color: #FFC72C; /* Gold-ish accent if needed, or just light grey */
+    --background-color: #1E1E1E; /* Dark mode background */
+    --card-bg: rgba(255, 255, 255, 0.05);
+    --text-color: #FFFFFF;
+}
+
+/* Global Styles */
+.stApp {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+/* Hide Streamlit Branding */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+
+/* Custom Headers */
+h1, h2, h3 {
+    color: var(--secondary-color) !important;
+    font-weight: 700;
+}
+
+h1 {
+    text-align: center;
+    text-transform: uppercase;
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 10px;
+    margin-bottom: 30px;
+}
+
+/* Cards (Glassmorphism) */
+.css-1r6slb0, .stDataFrame, .stButton {
+    border-radius: 12px;
+}
+
+div.stButton > button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    text-transform: uppercase;
+    font-weight: bold;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+div.stButton > button:hover {
+    background-color: #902025; /* Lighter maroon */
+    box-shadow: 0 4px 12px rgba(122, 23, 29, 0.4);
+    transform: translateY(-2px);
+}
+
+div.stButton > button:active {
+    transform: translateY(0);
+}
+
+/* Inputs */
+.stTextInput > div > div > input {
+    background-color: var(--card-bg);
+    color: white;
+    border: 1px solid var(--primary-color);
+}
+
+/* Tables */
+.dataframe {
+    width: 100%;
+}
+.dataframe th {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+    text-align: center !important;
+}
+.dataframe td {
+    background-color: #2D2D2D !important;
+    color: white !important;
+    text-align: center !important;
+}
+
+/* Custom Containers */
+.match-card {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 20px;
+    backdrop-filter: blur(10px);
+}
