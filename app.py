@@ -2,7 +2,7 @@ import streamlit as st
 import utils
 import copy
 
-st.set_page_config(page_title="Indoor League", page_icon="⚽", layout="wide")
+st.set_page_config(page_title="Indoor League", page_icon="⚽", layout="wide", initial_sidebar_state="collapsed")
 
 # Load CSS
 def load_css():
@@ -21,9 +21,13 @@ if "data" not in st.session_state:
 if "match_history" not in st.session_state:
     st.session_state["match_history"] = [] 
 
-# --- Sidebar ---
-st.sidebar.title("Morningside League")
-page = st.sidebar.radio("Navigate", ["Matches", "Standings", "Setup"])
+# --- Header ---
+st.markdown("<h1 style='text-align: center;'>MORNINGSIDE LEAGUE ⚽</h1>", unsafe_allow_html=True)
+
+# --- Navigation (Tabs) ---
+# Create 3 main tabs
+match_tab, standings_tab, setup_tab = st.tabs(["MATCHES", "STANDINGS", "SETUP"])
+
 
 # --- Helper Logic ---
 def save_state():
@@ -56,51 +60,10 @@ def delete_match_callback(m_id):
     st.session_state["data"] = utils.delete_match(st.session_state["data"], m_id)
     st.toast("Match Deleted!")
 
-# --- Pages ---
 
-if page == "Setup":
-    st.title("League Setup")
-    
-    st.subheader("Manage Teams")
-    teams = st.session_state["data"]["teams"]
-    
-    with st.form("add_team_form"):
-        col1, col2 = st.columns([3, 1])
-        new_team_name = col1.text_input("New Team Name", placeholder="Enter team name...")
-        add_btn = col2.form_submit_button("Add Team")
-        if add_btn and new_team_name:
-            st.session_state["data"] = utils.add_team(st.session_state["data"], new_team_name)
-            st.success(f"Added {new_team_name}!")
-            st.rerun()
-
-    st.markdown("---")
-    
-    st.write("Edit Existing Teams:")
-    with st.form("team_form"):
-        new_names = {}
-        keys = list(teams.keys())
-        for i in range(0, len(keys), 3):
-            cols = st.columns(3)
-            for j in range(3):
-                if i + j < len(keys):
-                    tid = keys[i+j]
-                    new_names[tid] = cols[j].text_input(f"ID: {tid}", value=teams[tid])
-        
-        submitted = st.form_submit_button("Update All Names")
-        if submitted:
-            for tid, name in new_names.items():
-                utils.update_team_name(st.session_state["data"], tid, name)
-            st.success("Team names updated!")
-            
-    st.markdown("---")
-    st.subheader("Danger Zone")
-    if st.button("RESET LEAGUE (Clear Matches)", type="primary"):
-        st.session_state["data"] = utils.reset_league()
-        st.session_state["match_history"] = []
-        st.rerun()
-
-elif page == "Matches":
-    st.title("Match Day (Coach Mode)")
+# --- MATCHES PAGE ---
+with match_tab:
+    # st.subheader("Match Day")
     
     data = st.session_state["data"]
     teams = data["teams"]
@@ -111,7 +74,6 @@ elif page == "Matches":
         st.markdown("### Add Match")
         c1, c2, c3, c4 = st.columns([1, 2, 2, 1])
         
-        # Default round logic
         rounds_present = sorted(list(set(m["round"] for m in matches)))
         next_rnd = max(rounds_present) + 1 if rounds_present else 1
         
@@ -143,9 +105,9 @@ elif page == "Matches":
         st.info("No matches yet. Use the creator above to start the season!")
     else:
         rounds = sorted(list(set(m["round"] for m in matches)))
-        tabs = st.tabs([f"Round {r}" for r in rounds])
+        round_tabs = st.tabs([f"Round {r}" for r in rounds])
         
-        for r_idx, tab in enumerate(tabs):
+        for r_idx, tab in enumerate(round_tabs):
             r_num = rounds[r_idx]
             with tab:
                 current_matches = [m for m in matches if m["round"] == r_num]
@@ -210,9 +172,50 @@ elif page == "Matches":
         if st.button("Save Matchday Results", type="primary"):
             save_state()
 
-elif page == "Standings":
-    st.title("League Standings")
+# --- STANDINGS PAGE ---
+with standings_tab:
+    st.subheader("Leaderboard")
     if st.button("Refresh Table", type="secondary"): st.rerun()
     df = utils.calculate_standings(st.session_state["data"])
     st.markdown(df.to_html(classes="dataframe"), unsafe_allow_html=True)
     st.info("Tie-breakers: Points > Goal Difference > Goals For")
+
+# --- SETUP PAGE ---
+with setup_tab:
+    st.subheader("League Config")
+    teams = st.session_state["data"]["teams"]
+    
+    with st.form("add_team_form"):
+        col1, col2 = st.columns([3, 1])
+        new_team_name = col1.text_input("New Team Name", placeholder="Enter team name...")
+        add_btn = col2.form_submit_button("Add Team")
+        if add_btn and new_team_name:
+            st.session_state["data"] = utils.add_team(st.session_state["data"], new_team_name)
+            st.success(f"Added {new_team_name}!")
+            st.rerun()
+
+    st.markdown("---")
+    
+    st.write("Edit Existing Teams:")
+    with st.form("team_form"):
+        new_names = {}
+        keys = list(teams.keys())
+        for i in range(0, len(keys), 3):
+            cols = st.columns(3)
+            for j in range(3):
+                if i + j < len(keys):
+                    tid = keys[i+j]
+                    new_names[tid] = cols[j].text_input(f"ID: {tid}", value=teams[tid])
+        
+        submitted = st.form_submit_button("Update All Names")
+        if submitted:
+            for tid, name in new_names.items():
+                utils.update_team_name(st.session_state["data"], tid, name)
+            st.success("Team names updated!")
+            
+    st.markdown("---")
+    st.subheader("Danger Zone")
+    if st.button("RESET LEAGUE (Clear Matches)", type="primary"):
+        st.session_state["data"] = utils.reset_league()
+        st.session_state["match_history"] = []
+        st.rerun()
