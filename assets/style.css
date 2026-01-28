@@ -1,8 +1,9 @@
 :root {
-    --primary-color: #7A171D; /* Morningside Maroon */
+    --primary-color: #7A171D;
+    /* Morningside Maroon */
     --secondary-color: #FFFFFF;
-    --accent-color: #FFC72C; /* Gold-ish accent if needed, or just light grey */
-    --background-color: #1E1E1E; /* Dark mode background */
+    --accent-color: #FFC72C;
+    --background-color: #1E1E1E;
     --card-bg: rgba(255, 255, 255, 0.05);
     --text-color: #FFFFFF;
 }
@@ -14,13 +15,21 @@
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
-/* Hide Streamlit Branding */
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-header {visibility: hidden;}
+#MainMenu {
+    visibility: hidden;
+}
 
-/* Custom Headers */
-h1, h2, h3 {
+footer {
+    visibility: hidden;
+}
+
+header {
+    visibility: hidden;
+}
+
+h1,
+h2,
+h3 {
     color: var(--secondary-color) !important;
     font-weight: 700;
 }
@@ -30,63 +39,104 @@ h1 {
     text-transform: uppercase;
     border-bottom: 2px solid var(--primary-color);
     padding-bottom: 10px;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
 }
 
-/* Cards (Glassmorphism) */
-.css-1r6slb0, .stDataFrame, .stButton {
+/* Glassmorphism */
+.css-1r6slb0,
+.stDataFrame,
+.stButton {
     border-radius: 12px;
 }
 
-div.stButton > button {
+/* Mobile-First Button Styling */
+div.stButton>button {
     background-color: var(--primary-color);
     color: white;
     border: none;
-    padding: 10px 24px;
+    padding: 12px 20px;
+    /* Larger Padding for Touch */
+    min-height: 48px;
+    /* Minimum Touch Target */
     text-transform: uppercase;
     font-weight: bold;
     border-radius: 8px;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
+    width: 100%;
+    /* Full width in columns */
+    font-size: 16px;
 }
 
-div.stButton > button:hover {
-    background-color: #902025; /* Lighter maroon */
+div.stButton>button:hover {
+    background-color: #902025;
     box-shadow: 0 4px 12px rgba(122, 23, 29, 0.4);
     transform: translateY(-2px);
 }
 
-div.stButton > button:active {
+div.stButton>button:active {
     transform: translateY(0);
 }
 
+div.stButton>button:focus {
+    color: white !important;
+    border-color: var(--accent-color) !important;
+}
+
 /* Inputs */
-.stTextInput > div > div > input {
+.stTextInput>div>div>input {
     background-color: var(--card-bg);
     color: white;
     border: 1px solid var(--primary-color);
+    min-height: 48px;
+    /* Touch target */
 }
 
 /* Tables */
 .dataframe {
     width: 100%;
 }
+
 .dataframe th {
     background-color: var(--primary-color) !important;
     color: white !important;
     text-align: center !important;
+    padding: 12px !important;
 }
+
 .dataframe td {
     background-color: #2D2D2D !important;
     color: white !important;
     text-align: center !important;
+    padding: 10px !important;
 }
 
-/* Custom Containers */
+/* Match Card */
 .match-card {
     background: var(--card-bg);
-    padding: 20px;
+    padding: 15px;
     border-radius: 15px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     margin-bottom: 20px;
     backdrop-filter: blur(10px);
+}
+
+/* Mobile adjustments */
+@media (max-width: 600px) {
+    .match-card {
+        padding: 10px;
+    }
+
+    h1 {
+        font-size: 1.5rem;
+    }
+
+    h3 {
+        font-size: 1rem;
+    }
+
+    /* Stack columns naturally, but ensure buttons are chunky */
+    div.stButton>button {
+        padding: 15px 10px;
+        margin-bottom: 5px;
+    }
 }
