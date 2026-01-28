@@ -130,5 +130,11 @@ def calculate_standings(data):
     # Sort: PTS > GD > GF
     if not df.empty:
         df = df.sort_values(by=["PTS", "GD", "GF"], ascending=[False, False, False])
+
+    # Reorder and Filter Columns as requested (PTS after Team, Hide GF/GA)
+    wanted_cols = ["Team", "PTS", "GP", "W", "D", "L", "GD"]
+    # Ensure column exists before selecting (in case of empty df with no cols initialized correctly)
+    final_cols = [c for c in wanted_cols if c in df.columns]
+    df = df[final_cols]
     
     return df
