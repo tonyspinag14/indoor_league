@@ -1,66 +1,149 @@
 import json
 import os
+import sqlite3
 import pandas as pd
 
-DATA_FILE = "league_data.json"
+DB_FILE = "league.db"
 
-DEFAULT_DATA = {
-    "teams": {str(i): f"Team {i}" for i in range(1, 7)},
-    "matches": []  # List of match objects
-}
+def get_connection():
+    return sqlite3.connect(DB_FILE)
+
+def init_db():
+    conn = get_connection()
+    c = conn.cursor()
+    
+    # Create tables
+    c.execute('''CREATE TABLE IF NOT EXISTS teams (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL
+                )''')
+    
+    c.execute('''CREATE TABLE IF NOT EXISTS matches (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    round_num INTEGER,
+                    t1_id INTEGER,
+                    t2_id INTEGER,
+                    g1 INTEGER DEFAULT 0,
+                    g2 INTEGER DEFAULT 0,
+                    f1 INTEGER DEFAULT 0,
+                    f2 INTEGER DEFAULT 0,
+                    is_done BOOLEAN DEFAULT 0,
+                    FOREIGN KEY(t1_id) REFERENCES teams(id),
+                    FOREIGN KEY(t2_id) REFERENCES teams(id)
+                )''')
+    
+    # Check if teams exist, if not add defaults
+    c.execute("SELECT count(*) FROM teams")
+    if c.fetchone()[0] == 0:
+        default_teams = [(f"Team {i}",) for i in range(1, 7)]
+        c.executemany("INSERT INTO teams (name) VALUES (?)", default_teams)
+    
+    conn.commit()
+    conn.close()
 
 def load_data():
-    if not os.path.exists(DATA_FILE):
-        return DEFAULT_DATA
-    with open(DATA_FILE, "r") as f:
-        try:
-            return json.load(f)
-        except json.JSONDecodeError:
-            return DEFAULT_DATA
+    # Ensure DB exists
+    init_db()
+    
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    data = {"teams": {}, "matches": []}
+    
+    # Load Teams
+    c.execute("SELECT * FROM teams")
+    rows = c.fetchall()
+    for r in rows:
+        data["teams"][str(r["id"])] = r["name"]
+        
+    # Load Matches
+    c.execute("SELECT * FROM matches")
+    rows = c.fetchall()
+    for r in rows:
+        m = dict(r)
+        # Rename is_done to done, t1_id to t1, etc to match app.py expectations
+        # The DB schema uses t1_id, t2_id, is_done.
+        # The app expects: id, round, t1, t2, g1, g2, f1, f2, done
+        match_obj = {
+            "id": m["id"],
+            "round": m["round_num"],
+            "t1": str(m["t1_id"]),
+            "t2": str(m["t2_id"]),
+            "g1": m["g1"],
+            "g2": m["g2"],
+            "f1": m["f1"],
+            "f2": m["f2"],
+            "done": bool(m["is_done"])
+        }
+        data["matches"].append(match_obj)
+        
+    conn.close()
+    return data
 
 def save_data(data):
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=4)
+    """
+    Saves the 'matches' list from the data dict to SQLite.
+    Since app.py modifies matches in memory and then calls this,
+    we iterate through data['matches'] and update them.
+    Teams are updated via separate calls, so strictly we could just update matches here.
+    """
+    conn = get_connection()
+    c = conn.cursor()
+    
+    for m in data["matches"]:
+        c.execute("""
+            UPDATE matches 
+            SET g1=?, g2=?, f1=?, f2=?, is_done=?
+            WHERE id=?
+        """, (m["g1"], m["g2"], m["f1"], m["f2"], m["done"], m["id"]))
+        
+    conn.commit()
+    conn.close()
 
 def reset_league():
-    if os.path.exists(DATA_FILE):
-        os.remove(DATA_FILE)
+    if os.path.exists(DB_FILE):
+        os.remove(DB_FILE)
     return load_data()
 
 def update_team_name(data, team_id, new_name):
-    data["teams"][team_id] = new_name
-    save_data(data)
-    return data
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("UPDATE teams SET name = ? WHERE id = ?", (new_name, team_id))
+    conn.commit()
+    conn.close()
+    return load_data()
 
 def add_team(data, name="New Team"):
-    # Find max ID
-    current_ids = [int(i) for i in data["teams"].keys()]
-    new_id = str(max(current_ids) + 1) if current_ids else "1"
-    data["teams"][new_id] = name
-    save_data(data)
-    return data
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("INSERT INTO teams (name) VALUES (?)", (name,))
+    conn.commit()
+    conn.close()
+    return load_data()
 
 def add_match(data, round_num, t1_id, t2_id):
-    start_id = max([m["id"] for m in data["matches"]]) + 1 if data["matches"] else 0
-    new_match = {
-        "id": start_id,
-        "round": round_num,
-        "t1": t1_id,
-        "t2": t2_id,
-        "g1": 0, "g2": 0,
-        "f1": 0, "f2": 0,
-        "done": False
-    }
-    data["matches"].append(new_match)
-    save_data(data)
-    return data
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO matches (round_num, t1_id, t2_id, g1, g2, f1, f2, is_done)
+        VALUES (?, ?, ?, 0, 0, 0, 0, 0)
+    """, (round_num, t1_id, t2_id))
+    conn.commit()
+    conn.close()
+    return load_data()
 
 def delete_match(data, match_id):
-    data["matches"] = [m for m in data["matches"] if m["id"] != match_id]
-    save_data(data)
-    return data
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM matches WHERE id = ?", (match_id,))
+    conn.commit()
+    conn.close()
+    return load_data()
 
 def calculate_standings(data):
+    # This logic operates on the 'data' dictionary which is already loaded.
+    # No changes needed for SQLite since 'data' structure is preserved by load_data.
     teams = data["teams"]
     matches = data["matches"]
     
@@ -71,29 +154,15 @@ def calculate_standings(data):
     # Process matches
     for m in matches:
         if not m.get("done") and (m["g1"] == 0 and m["g2"] == 0 and m["f1"] == 0 and m["f2"] == 0):
-             # Optional: count 0-0 unplayed matches as not played? 
-             # For now, we count them as played if they exist in the list and user sees them.
-             # Actually, logic said "done" flag. We generally only count "done" matches.
-             # But our add_match initializes done=False. 
-             # If user adds match, it appears on screen. 
-             # Let's count it only if it has been interacted with OR we consider 0-0 start.
-             # Common practice: 0-0 is a result if time passed, but here let's stick to "done" flag 
-             # OR just simple existence if we trust user inputs score.
-             # Actually, let's treat all added matches as GP=0 until customized? 
-             # No, standard app: added match = 0-0 draw if not updated? 
-             # Let's check `done` flag.
-             pass
+             continue
 
         if not m.get("done"):
-             # If strictly unplayed, skip standings update? 
-             # User said "Matches: Manual pairings... Save Matchday".
-             # If I add a match, it is 0-0.
              continue
             
         t1, t2 = m["t1"], m["t2"]
         g1, g2 = m["g1"], m["g2"]
         
-        # Verify teams exist (in case deleted, though we don't hold delete logic yet)
+        # Verify teams exist
         if t1 not in stats or t2 not in stats:
             continue
 
@@ -131,9 +200,8 @@ def calculate_standings(data):
     if not df.empty:
         df = df.sort_values(by=["PTS", "GD", "GF"], ascending=[False, False, False])
 
-    # Reorder and Filter Columns as requested (PTS after Team, Hide GF/GA)
+    # Reorder and Filter Columns
     wanted_cols = ["Team", "PTS", "GP", "W", "D", "L", "GD"]
-    # Ensure column exists before selecting (in case of empty df with no cols initialized correctly)
     final_cols = [c for c in wanted_cols if c in df.columns]
     df = df[final_cols]
     
