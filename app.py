@@ -1,6 +1,7 @@
 import streamlit as st
 import utils
 import copy
+import json
 
 st.set_page_config(page_title="Indoor League", page_icon="⚽", layout="wide", initial_sidebar_state="collapsed")
 
@@ -41,6 +42,7 @@ def update_stat(m_id, stat, delta, team_idx):
     snapshot = copy.deepcopy(real_match)
     st.session_state["match_history"].append(snapshot)
     
+    
     if stat == "goal":
         key = f"g{team_idx}"
         real_match[key] = max(0, real_match[key] + delta)
@@ -55,6 +57,9 @@ def update_stat(m_id, stat, delta, team_idx):
             st.toast(f"3 Fouls! Penalty Goal for {'Team 2' if team_idx==1 else 'Team 1'}!", icon="⚠️")
     
     real_match["done"] = True
+    
+    # AUTO-SAVE
+    utils.save_data(st.session_state["data"])
 
 def delete_match_callback(m_id):
     st.session_state["data"] = utils.delete_match(st.session_state["data"], m_id)
@@ -167,10 +172,8 @@ with match_tab:
                     if m["id"] == last_state["id"]:
                         st.session_state["data"]["matches"][idx] = last_state
                         break
+                utils.save_data(st.session_state["data"]) # Auto-save undo
                 st.rerun()
-    with ac2:
-        if st.button("Save Matchday Results", type="primary"):
-            save_state()
 
 # --- STANDINGS PAGE ---
 with standings_tab:
@@ -213,6 +216,32 @@ with setup_tab:
                 utils.update_team_name(st.session_state["data"], tid, name)
             st.success("Team names updated!")
             
+    st.markdown("---")
+    st.subheader("Data Management")
+    
+    # Download
+    st.write("Backup Data:")
+    json_data = json.dumps(st.session_state["data"], indent=2)
+    st.download_button(
+        label="Download JSON Backup",
+        data=json_data,
+        file_name="indoor_league_backup.json",
+        mime="application/json",
+        type="primary"
+    )
+
+    # Upload
+    st.write("Restore Backup:")
+    uploaded_file = st.file_uploader("Upload JSON Backup", type=["json"])
+    if uploaded_file is not None:
+        try:
+            backup_dict = json.load(uploaded_file)
+            st.session_state["data"] = utils.restore_from_backup(backup_dict)
+            st.success("Data restored successfully!")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error restoring data: {e}")
+
     st.markdown("---")
     st.subheader("Danger Zone")
     if st.button("RESET LEAGUE (Clear Matches)", type="primary"):

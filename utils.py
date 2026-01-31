@@ -206,3 +206,51 @@ def calculate_standings(data):
     df = df[final_cols]
     
     return df
+
+def restore_from_backup(backup_data):
+    """
+    Restores the database state from a JSON-compatible dictionary.
+    Exepcted structure: {"teams": {"id": "name"}, "matches": [...]}
+    """
+    # 1. Reset DB
+    if os.path.exists(DB_FILE):
+        os.remove(DB_FILE)
+    init_db()
+    
+    conn = get_connection()
+    c = conn.cursor()
+    
+    # 2. Restore Teams
+    # We need to preserve IDs. Since auto-increment is used, we can force IDs if we turn off auto-increment or just insert.
+    # SQLite allows inserting into INTEGER PRIMARY KEY columns explicitly.
+    teams = backup_data.get("teams", {})
+    if teams:
+        c.execute("DELETE FROM teams") # Ensure clean slate
+        for t_id, t_name in teams.items():
+            c.execute("INSERT INTO teams (id, name) VALUES (?, ?)", (int(t_id), t_name))
+            
+    # 3. Restore Matches
+    matches = backup_data.get("matches", [])
+    if matches:
+        # DB schema: id, round_num, t1_id, t2_id, g1, g2, f1, f2, is_done
+        # Backup schema (from matches match_obj): id, round, t1, t2, g1, g2, f1, f2, done
+        c.execute("DELETE FROM matches")
+        for m in matches:
+            c.execute("""
+                INSERT INTO matches (id, round_num, t1_id, t2_id, g1, g2, f1, f2, is_done)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                m["id"], 
+                m["round"], 
+                int(m["t1"]), 
+                int(m["t2"]), 
+                m["g1"], 
+                m["g2"], 
+                m["f1"], 
+                m["f2"], 
+                1 if m["done"] else 0
+            ))
+            
+    conn.commit()
+    conn.close()
+    return load_data()
